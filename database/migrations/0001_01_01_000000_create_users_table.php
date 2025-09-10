@@ -13,10 +13,8 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-
             // Identitas dasar
             $table->string('name');
-            $table->string('username')->unique();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
 
@@ -25,6 +23,7 @@ return new class extends Migration
             $table->enum('status', ['aktif','nonaktif'])->default('nonaktif');
 
             // Profil tambahan
+            $table->string('username')->nullable()->unique();
             $table->string('foto')->nullable();
             $table->string('alamat')->nullable();
             $table->string('no_hp')->nullable();

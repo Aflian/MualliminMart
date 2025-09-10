@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cashbook', function (Blueprint $table) {
+        Schema::create('cashbooks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('transaction_id')->nullable()->constrained('transactions')->nullOnDelete();
             $table->enum('type', ['in','out']);

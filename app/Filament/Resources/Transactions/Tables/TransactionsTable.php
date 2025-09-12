@@ -2,54 +2,96 @@
 
 namespace App\Filament\Resources\Transactions\Tables;
 
+use Filament\Tables\Table;
+use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
 
 class TransactionsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('transaction_date', 'desc')
             ->columns([
                 TextColumn::make('invoice_number')
+                    ->label('No. Invoice')
                     ->searchable(),
-                TextColumn::make('user_id')
-                    ->numeric()
+
+                TextColumn::make('user.name')
+                    ->label('Kasir/Admin')
+                    ->searchable()
                     ->sortable(),
-                TextColumn::make('shift_id')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('vendor_id')
-                    ->numeric()
-                    ->sortable(),
+
+                TextColumn::make('shift.shift_name')
+                    ->label('Shift')
+                    ->sortable()
+                    ->toggleable(),
+
+                TextColumn::make('vendor.name')
+                    ->label('Vendor/Supplier')
+                    ->sortable()
+                    ->toggleable(),
+
                 TextColumn::make('customer_name')
+                    ->label('Nama Customer')
                     ->searchable(),
+
                 TextColumn::make('category')
-                    ->badge(),
-                TextColumn::make('payment_method_id')
-                    ->numeric()
+                    ->label('Kategori')
+                    ->badge()
+                    ->colors([
+                        'success' => 'penjualan',
+                        'primary' => 'pembelian',
+                    ])
                     ->sortable(),
+
+                TextColumn::make('payment_method.name')
+                    ->label('Metode Pembayaran')
+                    ->sortable(),
+
                 TextColumn::make('payment_status')
-                    ->badge(),
+                    ->label('Status Pembayaran')
+                    ->badge()
+                    ->colors([
+                        'success' => 'lunas',
+                        'warning' => 'hutang',
+                        'danger'  => 'gagal',
+                    ])
+                    ->sortable(),
+
+                // 🔹 Tambahan Subtotal dari relasi items
+                TextColumn::make('items_sum_subtotal')
+                    ->label('Subtotal (Rp)')
+                    ->money('idr', true)
+                    ->sortable()
+                    ->getStateUsing(fn ($record) => $record->items->sum(fn ($item) => $item->quantity * $item->price)),
+
                 TextColumn::make('total_amount')
-                    ->numeric()
+                    ->label('Total (Rp)')
+                    ->money('idr', true)
                     ->sortable(),
+
                 TextColumn::make('transaction_date')
+                    ->label('Tanggal Transaksi')
                     ->dateTime()
                     ->sortable(),
+
                 TextColumn::make('due_date')
+                    ->label('Jatuh Tempo')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
+
                 TextColumn::make('created_at')
+                    ->label('Dibuat')
                     ->dateTime()
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('updated_at')
+                    ->label('Diperbarui')
                     ->dateTime()
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

@@ -14,30 +14,44 @@ class TransactionItemsTable
     {
         return $table
             ->columns([
-                TextColumn::make('transaction_id')
-                    ->numeric()
+                TextColumn::make('transaction.invoice_number')
+                    ->label('Invoice')
+                    ->searchable()
                     ->sortable(),
-                TextColumn::make('product_id')
-                    ->numeric()
+
+                TextColumn::make('product.name')
+                    ->label('Produk')
+                    ->searchable()
                     ->sortable(),
+
                 TextColumn::make('quantity')
+                    ->label('Kuantitas')
                     ->numeric()
                     ->sortable(),
+
                 TextColumn::make('unit')
-                    ->badge(),
+                    ->label('Satuan')
+                    ->badge()
+                    ->sortable(),
+
                 TextColumn::make('price')
-                    ->money()
+                    ->label('Harga')
+                    ->money('idr', true)
                     ->sortable(),
+
                 TextColumn::make('subtotal')
-                    ->numeric()
+                    ->label('Subtotal')
+                    ->money('idr', true)
                     ->sortable(),
+
                 TextColumn::make('created_at')
+                    ->label('Dibuat')
                     ->dateTime()
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('updated_at')
+                    ->label('Diperbarui')
                     ->dateTime()
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

@@ -21,4 +21,12 @@ class Product extends Model
     {
         return $this->hasMany(TransactionItem::class);
     }
+    // App\Models\Product.php
+    protected static function booted()
+    {
+        static::deleting(function ($product) {
+            $product->transactionItems()->delete();
+        });
+    }
+
 }

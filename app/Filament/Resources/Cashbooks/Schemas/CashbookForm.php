@@ -4,7 +4,9 @@ namespace App\Filament\Resources\Cashbooks\Schemas;
 
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
+use App\Models\Transaction;
 
 class CashbookForm
 {
@@ -12,19 +14,45 @@ class CashbookForm
     {
         return $schema
             ->components([
-                TextInput::make('transaction_id')
-                    ->numeric(),
+                Select::make('transaction_id')
+                    ->label('Transaksi Terkait (Opsional)')
+                    ->options(function () {
+                        return Transaction::all()->pluck('invoice_number', 'id')->toArray();
+                    })
+                    ->searchable()
+                    ->nullable(),
+
                 Select::make('type')
-                    ->options(['in' => 'In', 'out' => 'Out'])
+                    ->label('Tipe Kas')
+                    ->options([
+                        'in' => 'Masuk',
+                        'out' => 'Keluar',
+                    ])
                     ->required(),
+
                 Select::make('category')
-                    ->options(['penjualan' => 'Penjualan', 'pembelian' => 'Pembelian', 'operasional' => 'Operasional'])
+                    ->label('Kategori')
+                    ->options([
+                        'penjualan' => 'Penjualan',
+                        'pembelian' => 'Pembelian',
+                        'operasional' => 'Operasional',
+                    ])
                     ->required(),
+
                 TextInput::make('amount')
+                    ->label('Jumlah (Rp)')
+                    ->numeric()
                     ->required()
-                    ->numeric(),
-                TextInput::make('description'),
-                TextInput::make('reference'),
+                    ->prefix('Rp'),
+
+                Textarea::make('description')
+                    ->label('Deskripsi')
+                    ->rows(3)
+                    ->nullable(),
+
+                TextInput::make('reference')
+                    ->label('Referensi')
+                    ->nullable(),
             ]);
     }
 }

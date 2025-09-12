@@ -5,7 +5,14 @@ namespace App\Filament\Resources\Transactions\Schemas;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Schema;
+use App\Models\User;
+use App\Models\Shift;
+use App\Models\Vendor;
+use App\Models\PaymentMethod;
+use App\Models\Product;
+use App\Models\Transaction;
 
 class TransactionForm
 {
@@ -13,33 +20,131 @@ class TransactionForm
     {
         return $schema
             ->components([
+                // 🔹 Invoice unik
                 TextInput::make('invoice_number')
+                    ->label('No. Invoice')
+                    ->default(fn () => 'INV-' . now()->format('Ymd') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT))
+                    ->unique(ignoreRecord: true)
+                    ->disabled()
+                    ->dehydrated(),
+
+                Select::make('user_id')
+                    ->label('Kasir/Admin')
+                    ->options(User::pluck('name', 'id'))
+                    ->searchable()
                     ->required(),
-                TextInput::make('user_id')
-                    ->required()
-                    ->numeric(),
-                TextInput::make('shift_id')
-                    ->numeric(),
-                TextInput::make('vendor_id')
-                    ->numeric(),
-                TextInput::make('customer_name'),
+
+                Select::make('shift_id')
+                    ->label('Shift')
+                    ->options(Shift::pluck('shift_name', 'id'))
+                    ->searchable(),
+
+                Select::make('vendor_id')
+                    ->label('Vendor / Supplier')
+                    ->options(Vendor::pluck('name', 'id'))
+                    ->searchable(),
+
+                TextInput::make('customer_name')
+                    ->label('Nama Customer')
+                    ->placeholder('Opsional untuk pembelian'),
+
                 Select::make('category')
-                    ->options(['penjualan' => 'Penjualan', 'pembelian' => 'Pembelian'])
-                    ->required(),
-                TextInput::make('payment_method_id')
+                    ->label('Kategori Transaksi')
+                    ->options([
+                        'penjualan' => 'Penjualan',
+                        'pembelian' => 'Pembelian',
+                    ])
                     ->required()
-                    ->numeric(),
+                    ->reactive(),
+
+                Select::make('payment_method_id')
+                    ->label('Metode Pembayaran')
+                    ->options(PaymentMethod::pluck('name', 'id'))
+                    ->required(),
+
                 Select::make('payment_status')
-                    ->options(['lunas' => 'Lunas', 'hutang' => 'Hutang', 'gagal' => 'Gagal'])
+                    ->label('Status Pembayaran')
+                    ->options([
+                        'lunas' => 'Lunas',
+                        'hutang' => 'Hutang',
+                        'gagal' => 'Gagal',
+                    ])
                     ->default('lunas')
                     ->required(),
+
+                // 🔹 Repeater untuk item barang
+                Repeater::make('items')
+                    ->relationship('items')
+                    ->label('Daftar Barang')
+                    ->schema([
+                        Select::make('product_id')
+                            ->label('Produk')
+                            ->options(Product::pluck('name', 'id'))
+                            ->reactive()
+                            ->afterStateUpdated(fn ($state, callable $set) =>
+                                $set('price', Product::find($state)?->selling_price ?? 0)
+                            )
+                            ->required(),
+
+                        TextInput::make('quantity')
+                            ->label('Jumlah')
+                            ->numeric()
+                            ->default(1)
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $get, callable $set, $record) {
+                                $price = $get('price') ?? 0;
+                                $subtotal = $state * $price;
+                                $set('subtotal', $subtotal);
+
+                                // 🔹 Update stok langsung
+                                if ($record && $get('../../category')) { // ../../ untuk ambil state parent (category)
+                                    $product = Product::find($get('product_id'));
+                                    if ($product) {
+                                        if ($get('../../category') === 'penjualan') {
+                                            $product->decrement('stock', $state);
+                                        } elseif ($get('../../category') === 'pembelian') {
+                                            $product->increment('stock', $state);
+                                        }
+                                    }
+                                }
+                            })
+                            ->required(),
+
+                            TextInput::make('price')
+                            ->label('Harga Satuan')
+                            ->numeric()
+                            ->disabled()
+                            ->dehydrated(), // 🔹 wajib biar ke DB
+
+                        TextInput::make('subtotal')
+                            ->label('Subtotal')
+                            ->numeric()
+                            ->disabled(),
+
+                    ])
+                    ->defaultItems(1)
+                    ->columnSpanFull()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $total = collect($state)->sum('subtotal');
+                        $set('total_amount', $total);
+                    }),
+
+                // 🔹 Total otomatis
                 TextInput::make('total_amount')
-                    ->required()
+                    ->label('Total')
                     ->numeric()
-                    ->default(0.0),
+                    ->disabled()
+                    ->prefix('Rp')
+                    ->dehydrated(),
+
                 DateTimePicker::make('transaction_date')
+                    ->label('Tanggal Transaksi')
+                    ->default(now())
                     ->required(),
-                DateTimePicker::make('due_date'),
+
+                DateTimePicker::make('due_date')
+                    ->label('Tanggal Jatuh Tempo')
+                    ->placeholder('Opsional untuk hutang'),
             ]);
     }
 }

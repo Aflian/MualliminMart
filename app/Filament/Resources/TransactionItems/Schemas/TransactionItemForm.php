@@ -12,26 +12,55 @@ class TransactionItemForm
     {
         return $schema
             ->components([
-                TextInput::make('transaction_id')
-                    ->required()
-                    ->numeric(),
-                TextInput::make('product_id')
-                    ->required()
-                    ->numeric(),
+                // Pilih transaksi (dengan label)
+                Select::make('transaction_id')
+                    ->label('Transaksi')
+                    ->relationship('transaction', 'invoice_number')
+                    ->required(),
+
+                // Pilih produk
+                Select::make('product_id')
+                    ->label('Produk')
+                    ->relationship('product', 'name')
+                    ->required(),
+
+                // Jumlah
                 TextInput::make('quantity')
+                    ->label('Kuantitas')
+                    ->numeric()
                     ->required()
-                    ->numeric(),
+                    ->reactive(), // supaya bisa trigger kalkulasi subtotal
+
+                // Satuan
                 Select::make('unit')
-                    ->options(['pcs' => 'Pcs', 'kg' => 'Kg', 'liter' => 'Liter'])
+                    ->label('Satuan')
+                    ->options([
+                        'pcs' => 'Pcs',
+                        'kg' => 'Kg',
+                        'liter' => 'Liter',
+                    ])
                     ->default('pcs')
                     ->required(),
+
+                // Harga
                 TextInput::make('price')
-                    ->required()
+                    ->label('Harga')
                     ->numeric()
-                    ->prefix('$'),
-                TextInput::make('subtotal')
                     ->required()
-                    ->numeric(),
+                    ->prefix('Rp')
+                    ->reactive(),
+
+                // Subtotal otomatis dihitung
+                TextInput::make('subtotal')
+                    ->label('Subtotal')
+                    ->numeric()
+                    ->disabled()
+                    ->default(0)
+                    ->dehydrated(false) // tidak disimpan langsung, karena dihitung otomatis
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $set, $get) {
+                        $set('subtotal', $get('quantity') * $get('price'));
+                    }),
             ]);
     }
 }

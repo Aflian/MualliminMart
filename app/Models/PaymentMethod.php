@@ -14,4 +14,5 @@ class PaymentMethod extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+    
 }

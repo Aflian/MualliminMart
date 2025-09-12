@@ -13,13 +13,14 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class VendorResource extends Resource
 {
     protected static ?string $model = Vendor::class;
-
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
+    protected static string | UnitEnum | null $navigationGroup = 'Manajemen Barang';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
+    protected static ?string $navigationLabel = 'Manajemen Vendor';
     public static function form(Schema $schema): Schema
     {
         return VendorForm::configure($schema);

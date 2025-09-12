@@ -13,12 +13,14 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class ShiftResource extends Resource
 {
+    protected static string | UnitEnum | null $navigationGroup = 'Staf Manajemen';
     protected static ?string $model = Shift::class;
-
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Manajemen Shif';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-c-clock';
 
     public static function form(Schema $schema): Schema
     {

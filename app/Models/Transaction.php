@@ -35,7 +35,7 @@ class Transaction extends Model
 
         $transaction->cashbook()->create([
             'type'        => $type,
-            'category'    => $transaction->category,
+            'category'    => $transaction->category  ,
             'amount'      => $transaction->total_amount, // sekarang sudah terisi
             'description' => 'Auto entry dari transaksi ' . strtoupper($transaction->category) .
                              ' #' . $transaction->invoice_number,
@@ -62,6 +62,12 @@ class Transaction extends Model
     // saat transaksi dihapus
     static::deleted(function ($transaction) {
         $transaction->cashbook()->delete();
+    });
+
+    static::creating(function ($transaction) {
+        if (empty($transaction->invoice_number)) {
+            $transaction->invoice_number = 'INV-' . date('YmdHis') . '-' . rand(100, 999);
+        }
     });
 }
 

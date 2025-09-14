@@ -1,19 +1,18 @@
 <?php
 
-namespace App\Filament\Resources\Transactions\Schemas;
+namespace App\Filament\Kasir\Resources\Transactions\Schemas;
 
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Schema;
-use App\Models\User;
 use App\Models\Shift;
 use App\Models\Vendor;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Transaction;
-use Illuminate\Support\Facades\DB;
 
 class TransactionForm
 {
@@ -24,16 +23,15 @@ class TransactionForm
                 // 🔹 Invoice unik
                 TextInput::make('invoice_number')
                     ->label('No. Invoice')
-                    ->default(fn () => self::generateInvoiceNumber())
+                    ->default(fn () => 'INV-' . now()->format('Ymd') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT))
                     ->unique(ignoreRecord: true)
                     ->disabled()
                     ->dehydrated(),
 
-                Select::make('user_id')
-                    ->label('Kasir/Admin')
-                    ->options(User::pluck('name', 'id'))
-                    ->searchable()
-                    ->required(),
+                // 🔹 User otomatis dari kasir yang login
+                Hidden::make('user_id')
+                    ->default(fn () => auth()->id())
+                    ->dehydrated(),
 
                 Select::make('shift_id')
                     ->label('Shift')
@@ -41,7 +39,7 @@ class TransactionForm
                     ->searchable(),
 
                 Select::make('vendor_id')
-                    ->label('Vendor / Supplier')
+                    ->label('Vendor / Supplier (Opsional)')
                     ->options(Vendor::pluck('name', 'id'))
                     ->searchable(),
 
@@ -71,10 +69,9 @@ class TransactionForm
                         'gagal' => 'Gagal',
                     ])
                     ->default('lunas')
-                    ->required()
-                    ->reactive(),
+                    ->required(),
 
-                // 🔹 Repeater untuk item barang - DIOPTIMALKAN
+                // 🔹 Daftar item transaksi
                 Repeater::make('items')
                     ->relationship('items')
                     ->label('Daftar Barang')
@@ -83,32 +80,20 @@ class TransactionForm
                             ->label('Produk')
                             ->options(Product::pluck('name', 'id'))
                             ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $price = Product::find($state)?->selling_price ?? 0;
-                                $set('price', $price);
-                                
-                                // Hitung ulang subtotal
-                                $quantity = $get('quantity') ?? 1;
-                                $set('subtotal', $quantity * $price);
-                                
-                                // Trigger update total
-                                $set('../../trigger_total_update', now()->timestamp);
-                            })
+                            ->afterStateUpdated(fn ($state, callable $set) =>
+                                $set('price', Product::find($state)?->selling_price ?? 0)
+                            )
                             ->required(),
 
                         TextInput::make('quantity')
                             ->label('Jumlah')
                             ->numeric()
                             ->default(1)
-                            ->minValue(1)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $price = $get('price') ?? 0;
                                 $subtotal = $state * $price;
                                 $set('subtotal', $subtotal);
-                                
-                                // Trigger update total
-                                $set('../../trigger_total_update', now()->timestamp);
                             })
                             ->required(),
 
@@ -122,7 +107,7 @@ class TransactionForm
                             ->label('Subtotal')
                             ->numeric()
                             ->disabled()
-                            ->dehydrated(false), // Tidak disimpan ke DB
+                            ->dehydrated(),
                     ])
                     ->defaultItems(1)
                     ->columnSpanFull()
@@ -130,41 +115,14 @@ class TransactionForm
                         $total = collect($state)->sum('subtotal');
                         $set('total_amount', $total);
                     }),
-                    // ->createItemButtonLabel('Tambah Barang')
-                    // ->deleteItemButtonLabel('Hapus Barang')
-                    // ->reorderable(false),
 
-                // 🔹 Hidden field untuk trigger update total
-                TextInput::make('trigger_total_update')
-                    ->label('')
-                    ->hidden()
-                    ->reactive()
-                    ->afterStateUpdated(function ($state, callable $get, callable $set) {
-                        $items = $get('items') ?? [];
-                        $total = 0;
-                        
-                        foreach ($items as $item) {
-                            $subtotal = $item['subtotal'] ?? 0;
-                            $total += (float) $subtotal;
-                        }
-                        
-                        $set('total_amount', $total);
-                    }),
-
-                // 🔹 Total otomatis - DIOPTIMALKAN
+                // 🔹 Total otomatis
                 TextInput::make('total_amount')
                     ->label('Total')
                     ->numeric()
                     ->disabled()
                     ->prefix('Rp')
-                    ->dehydrated()
-                    ->afterStateHydrated(function ($state, callable $set, $record) {
-                        // Pastikan total selalu terhitung saat form di-load
-                        if ($record && $record->exists) {
-                            $total = $record->items->sum('subtotal');
-                            $set('total_amount', $total);
-                        }
-                    }),
+                    ->dehydrated(),
 
                 DateTimePicker::make('transaction_date')
                     ->label('Tanggal Transaksi')
@@ -173,19 +131,7 @@ class TransactionForm
 
                 DateTimePicker::make('due_date')
                     ->label('Tanggal Jatuh Tempo')
-                    ->placeholder('Opsional untuk hutang')
-                    ->hidden(fn (callable $get) => $get('payment_status') !== 'hutang'),
+                    ->placeholder('Opsional untuk hutang'),
             ]);
-    }
-
-    /**
-     * Generate invoice number dengan format yang lebih reliable
-     */
-    private static function generateInvoiceNumber(): string
-    {
-        $lastInvoice = Transaction::orderBy('id', 'desc')->first();
-        $lastId = $lastInvoice ? $lastInvoice->id : 0;
-        
-        return 'INV-' . now()->format('Ymd') . '-' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
     }
 }

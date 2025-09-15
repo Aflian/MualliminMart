@@ -15,8 +15,10 @@ class VendorsTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('NAMA VENDOR')
                     ->searchable(),
                 TextColumn::make('contact')
+                    ->label('KONTAK VENDOR')
                     ->searchable(),
                 TextColumn::make('created_at')
                     ->dateTime()

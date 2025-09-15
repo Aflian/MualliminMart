@@ -5,8 +5,9 @@ namespace App\Filament\Resources\PaymentMethods\Tables;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ImageColumn;
 
 class PaymentMethodsTable
 {
@@ -17,8 +18,11 @@ class PaymentMethodsTable
                 TextColumn::make('name')
                     ->searchable(),
                 TextColumn::make('description')
+                    ->label('Deskripsi')
+                    ->placeholder('NO.REKENING-NAMA BANK..')
                     ->searchable(),
-                TextColumn::make('foto')
+                ImageColumn::make('foto')
+                    ->label('FOTO REKENING/QRIS')
                     ->searchable(),
                 TextColumn::make('created_at')
                     ->dateTime()

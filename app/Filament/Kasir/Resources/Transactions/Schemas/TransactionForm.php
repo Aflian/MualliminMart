@@ -13,6 +13,7 @@ use App\Models\Vendor;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\Auth;
 
 class TransactionForm
 {
@@ -20,41 +21,37 @@ class TransactionForm
     {
         return $schema
             ->components([
+
                 // 🔹 Invoice unik
                 TextInput::make('invoice_number')
                     ->label('No. Invoice')
-                    ->default(fn () => 'INV-' . now()->format('Ymd') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 4, '0', STR_PAD_LEFT))
+                    ->default(fn () => self::generateInvoiceNumber())
                     ->unique(ignoreRecord: true)
                     ->disabled()
                     ->dehydrated(),
 
-                // 🔹 User otomatis dari kasir yang login
+                // 🔹 User otomatis terisi sesuai kasir login
                 Hidden::make('user_id')
-                    ->default(fn () => auth()->id())
+                    ->default(fn () => Auth::id())
                     ->dehydrated(),
+                
 
+                // 🔹 Shift kasir (opsional, bisa auto set jika sistem shift aktif)
                 Select::make('shift_id')
                     ->label('Shift')
                     ->options(Shift::pluck('shift_name', 'id'))
-                    ->searchable(),
-
-                Select::make('vendor_id')
-                    ->label('Vendor / Supplier (Opsional)')
-                    ->options(Vendor::pluck('name', 'id'))
-                    ->searchable(),
+                    ->searchable()
+                    ->required(),
 
                 TextInput::make('customer_name')
                     ->label('Nama Customer')
                     ->placeholder('Opsional untuk pembelian'),
 
-                Select::make('category')
-                    ->label('Kategori Transaksi')
-                    ->options([
-                        'penjualan' => 'Penjualan',
-                        'pembelian' => 'Pembelian',
-                    ])
-                    ->required()
-                    ->reactive(),
+                // 🔹 Kasir hanya boleh penjualan
+                TextInput::make('category')
+                    ->default('penjualan')
+                    ->hidden()
+                    ->dehydrated(),
 
                 Select::make('payment_method_id')
                     ->label('Metode Pembayaran')
@@ -66,12 +63,12 @@ class TransactionForm
                     ->options([
                         'lunas' => 'Lunas',
                         'hutang' => 'Hutang',
-                        'gagal' => 'Gagal',
                     ])
                     ->default('lunas')
-                    ->required(),
+                    ->required()
+                    ->reactive(),
 
-                // 🔹 Daftar item transaksi
+                // 🔹 Repeater untuk item barang
                 Repeater::make('items')
                     ->relationship('items')
                     ->label('Daftar Barang')
@@ -80,20 +77,28 @@ class TransactionForm
                             ->label('Produk')
                             ->options(Product::pluck('name', 'id'))
                             ->reactive()
-                            ->afterStateUpdated(fn ($state, callable $set) =>
-                                $set('price', Product::find($state)?->selling_price ?? 0)
-                            )
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                $price = Product::find($state)?->selling_price ?? 0;
+                                $set('price', $price);
+
+                                $quantity = $get('quantity') ?? 1;
+                                $set('subtotal', $quantity * $price);
+
+                                $set('../../trigger_total_update', now()->timestamp);
+                            })
                             ->required(),
 
                         TextInput::make('quantity')
                             ->label('Jumlah')
                             ->numeric()
                             ->default(1)
+                            ->minValue(1)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $price = $get('price') ?? 0;
                                 $subtotal = $state * $price;
                                 $set('subtotal', $subtotal);
+                                $set('../../trigger_total_update', now()->timestamp);
                             })
                             ->required(),
 
@@ -107,16 +112,22 @@ class TransactionForm
                             ->label('Subtotal')
                             ->numeric()
                             ->disabled()
-                            ->dehydrated(),
+                            ->dehydrated(false),
                     ])
                     ->defaultItems(1)
-                    ->columnSpanFull()
-                    ->afterStateUpdated(function ($state, callable $set) {
-                        $total = collect($state)->sum('subtotal');
+                    ->columnSpanFull(),
+
+                // 🔹 Trigger update total
+                TextInput::make('trigger_total_update')
+                    ->hidden()
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                        $items = $get('items') ?? [];
+                        $total = collect($items)->sum('subtotal');
                         $set('total_amount', $total);
                     }),
 
-                // 🔹 Total otomatis
+                // 🔹 Total transaksi
                 TextInput::make('total_amount')
                     ->label('Total')
                     ->numeric()
@@ -131,7 +142,16 @@ class TransactionForm
 
                 DateTimePicker::make('due_date')
                     ->label('Tanggal Jatuh Tempo')
-                    ->placeholder('Opsional untuk hutang'),
+                    ->placeholder('Opsional untuk hutang')
+                    ->hidden(fn (callable $get) => $get('payment_status') !== 'hutang'),
             ]);
+    }
+
+    private static function generateInvoiceNumber(): string
+    {
+        $lastInvoice = Transaction::orderBy('id', 'desc')->first();
+        $lastId = $lastInvoice ? $lastInvoice->id : 0;
+
+        return 'INV-' . now()->format('Ymd') . '-' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
     }
 }

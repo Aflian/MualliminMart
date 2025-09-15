@@ -13,9 +13,13 @@ class VendorForm
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('NAMA VENDOR')
                     ->required(),
-                TextInput::make('contact'),
+                TextInput::make('contact')
+                    ->label('KONTAK VENDOR')
+                    ->placeholder('NO-TLP : 08XXXXXXXXX'),
                 Textarea::make('address')
+                    ->Label('ALAMAN VENDOR')
                     ->columnSpanFull(),
             ]);
     }

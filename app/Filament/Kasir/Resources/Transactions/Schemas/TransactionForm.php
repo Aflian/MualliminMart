@@ -34,7 +34,6 @@ class TransactionForm
                 Hidden::make('user_id')
                     ->default(fn () => Auth::id())
                     ->dehydrated(),
-                
 
                 // 🔹 Shift kasir (opsional, bisa auto set jika sistem shift aktif)
                 Select::make('shift_id')
@@ -47,10 +46,13 @@ class TransactionForm
                     ->label('Nama Customer')
                     ->placeholder('Opsional untuk pembelian'),
 
-                // 🔹 Kasir hanya boleh penjualan
-                TextInput::make('category')
+                // 🔹 Kasir bisa pilih kategori
+                Select::make('category')
                     ->default('penjualan')
-                    ->hidden()
+                    ->options([
+                        'penjualan' => 'Penjualan',
+                        'pembelian' => 'Pembelian',
+                    ])
                     ->dehydrated(),
 
                 Select::make('payment_method_id')
@@ -78,13 +80,26 @@ class TransactionForm
                             ->options(Product::pluck('name', 'id'))
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $price = Product::find($state)?->selling_price ?? 0;
-                                $set('price', $price);
+                                $product = Product::find($state);
 
-                                $quantity = $get('quantity') ?? 1;
-                                $set('subtotal', $quantity * $price);
+                                if ($product) {
+                                    // Ambil kategori transaksi dari parent
+                                    $category = $get('../../category');
 
-                                $set('../../trigger_total_update', now()->timestamp);
+                                    if ($category === 'pembelian') {
+                                        $price = $product->purchase_price; // harga beli
+                                    } else {
+                                        $price = $product->selling_price; // harga jual
+                                    }
+
+                                    $set('price', $price);
+
+                                    $quantity = $get('quantity') ?? 1;
+                                    $set('subtotal', $quantity * $price);
+
+                                    // trigger update total
+                                    $set('../../trigger_total_update', now()->timestamp);
+                                }
                             })
                             ->required(),
 

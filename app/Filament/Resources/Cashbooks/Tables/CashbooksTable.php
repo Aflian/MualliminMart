@@ -49,7 +49,7 @@ class CashbooksTable
                     ])
                     ->sortable(),
 
-                TextColumn::make('amount')
+                TextColumn::make('transaction.total_amount')
                     ->label('Jumlah (Rp)')
                     ->money('idr', true)
                     ->sortable()

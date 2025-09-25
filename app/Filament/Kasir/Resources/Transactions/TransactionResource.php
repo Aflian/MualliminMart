@@ -2,18 +2,19 @@
 
 namespace App\Filament\Kasir\Resources\Transactions;
 
-use App\Filament\Kasir\Resources\Transactions\Pages\CreateTransaction;
+use UnitEnum;
+use BackedEnum;
+use App\Models\Cashbook;
+use Filament\Tables\Table;
+use App\Models\Transaction;
+use Filament\Schemas\Schema;
+use Filament\Resources\Resource;
+use Filament\Support\Icons\Heroicon;
 use App\Filament\Kasir\Resources\Transactions\Pages\EditTransaction;
 use App\Filament\Kasir\Resources\Transactions\Pages\ListTransactions;
+use App\Filament\Kasir\Resources\Transactions\Pages\CreateTransaction;
 use App\Filament\Kasir\Resources\Transactions\Schemas\TransactionForm;
 use App\Filament\Kasir\Resources\Transactions\Tables\TransactionsTable;
-use App\Models\Transaction;
-use BackedEnum;
-use UnitEnum;
-use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Table;
 
 class TransactionResource extends Resource
 {
@@ -38,6 +39,23 @@ class TransactionResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function afterCreate($record): void
+    {
+        // Jangan masukin ke cashbook kalau hutang
+        if ($record->payment_status === 'hutang') {
+            return;
+        }
+
+        Cashbook::create([
+            'transaction_id' => $record->id,
+            'type'           => $record->category === 'penjualan' ? 'in' : 'out',
+            'category'       => $record->category,
+            'amount'         => $record->total_amount,
+            'description'    => "Transaksi {$record->category} - {$record->invoice_number}",
+            'reference'      => $record->customer_name ?? '-',
+        ]);
     }
 
     public static function getPages(): array

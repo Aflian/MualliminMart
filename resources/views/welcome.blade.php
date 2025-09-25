@@ -39,7 +39,9 @@
         }
 
         .hero-section {
-            background: var(--gradient-primary);
+            background: url('asset/image.png') ;
+            background-size:cover ;
+            background-posisition:center ;
             min-height: 100vh;
             display: flex;
             align-items: center;

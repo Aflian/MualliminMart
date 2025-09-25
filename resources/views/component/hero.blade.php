@@ -12,7 +12,7 @@
             </div>
             <div class="col-lg-6 text-center">
                 <div style="font-size: 20rem; color: rgba(255,255,255,0.2);">
-                    <i class="fas fa-store"></i>
+                    <img class="rounded-circle" height="250px" width="250px" src="{{asset('asset/logo.png')}}" alt="" >
                 </div>
             </div>
         </div>

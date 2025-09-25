@@ -13,7 +13,6 @@ use App\Models\Vendor;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Transaction;
-use Illuminate\Support\Facades\DB;
 
 class TransactionForm
 {
@@ -74,7 +73,7 @@ class TransactionForm
                     ->required()
                     ->reactive(),
 
-                // 🔹 Repeater untuk item barang - DIOPTIMALKAN
+                // 🔹 Repeater untuk item barang
                 Repeater::make('items')
                     ->relationship('items')
                     ->label('Daftar Barang')
@@ -84,15 +83,25 @@ class TransactionForm
                             ->options(Product::pluck('name', 'id'))
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $price = Product::find($state)?->selling_price ?? 0;
-                                $set('price', $price);
-                                
-                                // Hitung ulang subtotal
-                                $quantity = $get('quantity') ?? 1;
-                                $set('subtotal', $quantity * $price);
-                                
-                                // Trigger update total
-                                $set('../../trigger_total_update', now()->timestamp);
+                                $product = Product::find($state);
+
+                                if ($product) {
+                                    $category = $get('../../category');
+
+                                    if ($category === 'pembelian') {
+                                        $price = $product->purchase_price; // harga beli
+                                    } else {
+                                        $price = $product->selling_price; // harga jual
+                                    }
+
+                                    $set('price', $price);
+
+                                    $quantity = $get('quantity') ?? 1;
+                                    $set('subtotal', $quantity * $price);
+
+                                    // trigger update total
+                                    $set('../../trigger_total_update', now()->timestamp);
+                                }
                             })
                             ->required(),
 
@@ -106,8 +115,6 @@ class TransactionForm
                                 $price = $get('price') ?? 0;
                                 $subtotal = $state * $price;
                                 $set('subtotal', $subtotal);
-                                
-                                // Trigger update total
                                 $set('../../trigger_total_update', now()->timestamp);
                             })
                             ->required(),
@@ -122,36 +129,22 @@ class TransactionForm
                             ->label('Subtotal')
                             ->numeric()
                             ->disabled()
-                            ->dehydrated(false), // Tidak disimpan ke DB
+                            ->dehydrated(false),
                     ])
                     ->defaultItems(1)
-                    ->columnSpanFull()
-                    ->afterStateUpdated(function ($state, callable $set) {
-                        $total = collect($state)->sum('subtotal');
-                        $set('total_amount', $total);
-                    }),
-                    // ->createItemButtonLabel('Tambah Barang')
-                    // ->deleteItemButtonLabel('Hapus Barang')
-                    // ->reorderable(false),
+                    ->columnSpanFull(),
 
                 // 🔹 Hidden field untuk trigger update total
                 TextInput::make('trigger_total_update')
-                    ->label('')
                     ->hidden()
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $get, callable $set) {
                         $items = $get('items') ?? [];
-                        $total = 0;
-                        
-                        foreach ($items as $item) {
-                            $subtotal = $item['subtotal'] ?? 0;
-                            $total += (float) $subtotal;
-                        }
-                        
+                        $total = collect($items)->sum('subtotal');
                         $set('total_amount', $total);
                     }),
 
-                // 🔹 Total otomatis - DIOPTIMALKAN
+                // 🔹 Total otomatis
                 TextInput::make('total_amount')
                     ->label('Total')
                     ->numeric()
@@ -159,7 +152,6 @@ class TransactionForm
                     ->prefix('Rp')
                     ->dehydrated()
                     ->afterStateHydrated(function ($state, callable $set, $record) {
-                        // Pastikan total selalu terhitung saat form di-load
                         if ($record && $record->exists) {
                             $total = $record->items->sum('subtotal');
                             $set('total_amount', $total);
@@ -178,14 +170,11 @@ class TransactionForm
             ]);
     }
 
-    /**
-     * Generate invoice number dengan format yang lebih reliable
-     */
     private static function generateInvoiceNumber(): string
     {
         $lastInvoice = Transaction::orderBy('id', 'desc')->first();
         $lastId = $lastInvoice ? $lastInvoice->id : 0;
-        
+
         return 'INV-' . now()->format('Ymd') . '-' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
     }
 }

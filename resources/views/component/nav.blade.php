@@ -1,6 +1,8 @@
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
-        <a class="navbar-brand" href="#"><i class="fas fa-shopping-basket me-2"></i>Muallimin Mart</a>
+        <a class="navbar-brand" href="#">
+            <img src=" {{ asset('asset/logo.png') }} " alt="" width="50" height="50">
+        Muallimin Mart</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>

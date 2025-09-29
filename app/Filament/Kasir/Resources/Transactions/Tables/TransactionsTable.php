@@ -46,7 +46,8 @@ class TransactionsTable
                 ->colors([
                     'success' => 'penjualan',
                     'primary' => 'pembelian',
-                ]),
+                ])
+                ->sortable(),
 
             TextColumn::make('total_amount')
                 ->label('Total')

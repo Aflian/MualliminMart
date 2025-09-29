@@ -14,6 +14,7 @@
                 <li class="nav-item"><a class="nav-link" href="{{route('katalog')}}">Produk</a></li>
                 <li class="nav-item"><a class="nav-link" href="#testimoni">Testimoni</a></li>
                 <li class="nav-item"><a class="nav-link" href="#kontak">Kontak</a></li>
+                <li class="nav-item bg-warning rounded ms-2 "><a class="nav-link" href="{{route('filament.kasir.auth.login')}}">Login</a></li>
             </ul>
         </div>
     </div>

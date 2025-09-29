@@ -3,7 +3,9 @@
 namespace App\Filament\Widgets;
 
 use App\Models\User;
+use App\Models\Shift;
 use App\Models\Vendor;
+use App\Models\Product;
 use App\Models\Cashbook;
 use App\Models\Transaction;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -18,6 +20,8 @@ class CashbookStats extends BaseWidget
         $totalIn = Cashbook::where('type', 'in')->sum('amount');
         $totalOut = Cashbook::where('type', 'out')->sum('amount');
         $saldo = $totalIn - $totalOut;
+        $totalProduct =  Product::Count();
+        $totalShift =  Shift::Count();
 
         return [
             Stat::make('Total Pemasukan', 'Rp ' . number_format($totalIn, 0, ',', '.'))
@@ -48,6 +52,14 @@ class CashbookStats extends BaseWidget
                 ->description('Jumlah semua transaksi yang tercatat')
                 ->descriptionIcon('heroicon-o-credit-card')
                 ->color('warning'),
+            Stat::make('Total Product', $totalProduct)
+                ->description('Jumlah Product yang tersedia')
+                ->descriptionIcon('heroicon-o-cube')
+                ->color('warning'),
+            Stat::make('Total Shift', $totalShift)
+                ->description('Jumlah Shift tersedia')
+                ->descriptionIcon('heroicon-o-clock')
+                ->color('success'),
         ];
     }
 }

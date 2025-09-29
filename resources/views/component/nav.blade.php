@@ -1,7 +1,7 @@
 <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
         <a class="navbar-brand" href="#">
-            <img src=" {{ asset('asset/logo.png') }} " alt="" width="50" height="50">
+            <img src=" {{ asset('asset/logoFox.png') }} " alt="" width="60" height="60">
         Muallimin Mart</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>

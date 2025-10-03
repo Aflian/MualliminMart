@@ -2,11 +2,12 @@
 
 namespace App\Filament\Kasir\Resources\Transactions\Tables;
 
+use Filament\Tables\Table;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
 
 class TransactionsTable
 {
@@ -64,6 +65,12 @@ class TransactionsTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('print')
+                    ->label('Print')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn ($record) => route('transactions.print', $record->id))
+                    ->openUrlInNewTab(),
+
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

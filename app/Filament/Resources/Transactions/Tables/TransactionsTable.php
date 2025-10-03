@@ -75,23 +75,23 @@ class TransactionsTable
 
                 TextColumn::make('transaction_date')
                     ->label('Tanggal Transaksi')
-                    ->dateTime()
+                    ->dateTime(timezone: 'Asia/Jakarta')
                     ->sortable(),
 
                 TextColumn::make('due_date')
                     ->label('Jatuh Tempo')
-                    ->dateTime()
+                    ->dateTime(timezone: 'Asia/Jakarta')
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('created_at')
                     ->label('Dibuat')
-                    ->dateTime()
+                    ->dateTime(timezone: 'Asia/Jakarta')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('updated_at')
                     ->label('Diperbarui')
-                    ->dateTime()
+                    ->dateTime(timezone: 'Asia/Jakarta')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

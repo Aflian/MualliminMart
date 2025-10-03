@@ -82,6 +82,7 @@ class TransactionForm
                             ->label('Produk')
                             ->options(Product::pluck('name', 'id'))
                             ->reactive()
+                            ->searchable()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 $product = Product::find($state);
 

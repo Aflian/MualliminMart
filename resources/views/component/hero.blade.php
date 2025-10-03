@@ -12,7 +12,7 @@
             </div>
             <div class="col-lg-6 text-center">
                 <div style="font-size: 20rem; color: rgba(255,255,255,0.2);">
-                    <img class="rounded-circle" height="350px" width="350px" src="{{asset('asset/Muallimin Mart (2).png')}}" alt="" >
+                    <img class="rounded"  width="350px" src="{{asset('asset/logoM.png')}}" alt="" >
                 </div>
             </div>
         </div>

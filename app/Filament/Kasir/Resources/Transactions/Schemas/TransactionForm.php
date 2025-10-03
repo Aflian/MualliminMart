@@ -9,7 +9,6 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Schema;
 use App\Models\Shift;
-use App\Models\Vendor;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Transaction;
@@ -30,12 +29,12 @@ class TransactionForm
                     ->disabled()
                     ->dehydrated(),
 
-                // 🔹 User otomatis terisi sesuai kasir login
+                // 🔹 User otomatis (kasir login)
                 Hidden::make('user_id')
                     ->default(fn () => Auth::id())
                     ->dehydrated(),
 
-                // 🔹 Shift kasir (opsional, bisa auto set jika sistem shift aktif)
+                // 🔹 Shift manual
                 Select::make('shift_id')
                     ->label('Shift')
                     ->options(Shift::pluck('shift_name', 'id'))
@@ -43,10 +42,8 @@ class TransactionForm
                     ->required(),
 
                 TextInput::make('customer_name')
-                    ->label('Nama Customer')
-                    ->placeholder('Opsional untuk pembelian'),
+                    ->label('Nama Customer'),
 
-                // 🔹 Kasir bisa pilih kategori
                 Select::make('category')
                     ->default('penjualan')
                     ->options([
@@ -70,69 +67,98 @@ class TransactionForm
                     ->required()
                     ->reactive(),
 
-                // 🔹 Repeater untuk item barang
+                // 🔹 Input scan barcode
+                TextInput::make('scan_barcode')
+                    ->label('Scan / Input Barcode')
+                    ->placeholder('Scan barcode produk atau ketik manual, lalu tekan Enter...')
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                        if (!$state) return;
+
+                        $product = Product::where('sku', trim($state))->first();
+                        if (!$product) {
+                            return;
+                        }
+
+                        $items = $get('items') ?? [];
+                        $category = $get('category');
+                        $price = $category === 'pembelian' ? $product->purchase_price : $product->selling_price;
+
+                        $found = false;
+                        foreach ($items as $index => $item) {
+                            if ($item['product_id'] == $product->id) {
+                                $items[$index]['quantity'] = ($items[$index]['quantity'] ?? 1) + 1;
+                                $items[$index]['subtotal'] = $items[$index]['quantity'] * $items[$index]['price'];
+                                $found = true;
+                                break;
+                            }
+                        }
+
+                        if (!$found) {
+                            $items[] = [
+                                'product_id'   => $product->id,
+                                'product_name' => $product->name,
+                                'quantity'     => 1,
+                                'price'        => $price,
+                                'subtotal'     => $price,
+                            ];
+                        }
+
+                        $set('items', $items);
+                        $set('trigger_total_update', now()->timestamp);
+
+                        $set('scan_barcode', '');
+                    }),
+
+                // 🔹 Daftar item
                 Repeater::make('items')
                     ->relationship('items')
                     ->label('Daftar Barang')
                     ->schema([
-                        Select::make('product_id')
+                        Hidden::make('product_id'),
+
+                        TextInput::make('product_name')
                             ->label('Produk')
-                            ->options(Product::pluck('name', 'id'))
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                $product = Product::find($state);
-
-                                if ($product) {
-                                    // Ambil kategori transaksi dari parent
-                                    $category = $get('../../category');
-
-                                    if ($category === 'pembelian') {
-                                        $price = $product->purchase_price; // harga beli
-                                    } else {
-                                        $price = $product->selling_price; // harga jual
-                                    }
-
-                                    $set('price', $price);
-
-                                    $quantity = $get('quantity') ?? 1;
-                                    $set('subtotal', $quantity * $price);
-
-                                    // trigger update total
-                                    $set('../../trigger_total_update', now()->timestamp);
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->afterStateHydrated(function ($state, callable $set, callable $get) {
+                                if (!$state && $get('product_id')) {
+                                    $set('product_name', Product::find($get('product_id'))->name ?? '');
                                 }
                             })
-                            ->required(),
+                            ->columnSpan(4),
 
                         TextInput::make('quantity')
-                            ->label('Jumlah')
+                            ->label('Qty')
                             ->numeric()
                             ->default(1)
                             ->minValue(1)
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $price = $get('price') ?? 0;
-                                $subtotal = $state * $price;
-                                $set('subtotal', $subtotal);
+                                $set('subtotal', $state * $price);
                                 $set('../../trigger_total_update', now()->timestamp);
                             })
-                            ->required(),
+                            ->columnSpan(2),
 
                         TextInput::make('price')
-                            ->label('Harga Satuan')
+                            ->label('Harga')
                             ->numeric()
                             ->disabled()
-                            ->dehydrated(),
+                            ->dehydrated()
+                            ->columnSpan(3),
 
                         TextInput::make('subtotal')
                             ->label('Subtotal')
                             ->numeric()
                             ->disabled()
-                            ->dehydrated(false),
+                            ->dehydrated(false)
+                            ->columnSpan(3),
                     ])
-                    ->defaultItems(1)
+                    ->columns(12)
                     ->columnSpanFull(),
 
-                // 🔹 Trigger update total
+                // 🔹 Trigger untuk hitung total
                 TextInput::make('trigger_total_update')
                     ->hidden()
                     ->reactive()
@@ -140,9 +166,13 @@ class TransactionForm
                         $items = $get('items') ?? [];
                         $total = collect($items)->sum('subtotal');
                         $set('total_amount', $total);
+
+                        // otomatis update kembalian kalau ada uang dibayar
+                        $dibayar = $get('uang_dibayar') ?? 0;
+                        $set('uang_kembalian', max(0, $dibayar - $total));
                     }),
 
-                // 🔹 Total transaksi
+                // 🔹 Total belanja
                 TextInput::make('total_amount')
                     ->label('Total')
                     ->numeric()
@@ -150,14 +180,31 @@ class TransactionForm
                     ->prefix('Rp')
                     ->dehydrated(),
 
+                // 🔹 Uang dibayar
+                TextInput::make('uang_dibayar')
+                    ->label('Uang Dibayar')
+                    ->numeric()
+                    ->live(debounce: 500) // biar tidak ke-reset saat ketik
+                    ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                        $total = $get('total_amount') ?? 0;
+                        $set('uang_kembalian', max(0, $state - $total));
+                    }),
+
+                // 🔹 Uang kembalian
+                TextInput::make('uang_kembalian')
+                    ->label('Kembalian')
+                    ->numeric()
+                    ->disabled()
+                    ->dehydrated(false),
+
                 DateTimePicker::make('transaction_date')
                     ->label('Tanggal Transaksi')
                     ->default(now())
+                    ->readOnly()
                     ->required(),
 
                 DateTimePicker::make('due_date')
-                    ->label('Tanggal Jatuh Tempo')
-                    ->placeholder('Opsional untuk hutang')
+                    ->label('Jatuh Tempo')
                     ->hidden(fn (callable $get) => $get('payment_status') !== 'hutang'),
             ]);
     }

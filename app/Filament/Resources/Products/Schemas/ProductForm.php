@@ -71,6 +71,7 @@ class ProductForm
                             'pcs' => 'Pcs',
                             'kg' => 'Kg',
                             'liter' => 'Liter',
+                            'saldo' => 'saldo',
                         ])
                         ->default('pcs')
                         ->required(),
